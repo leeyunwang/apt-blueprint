@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>아파트 검색 및 평수 정보 조회</title>
+    <title>전국 아파트 단지 검색 및 평수 조회</title>
     <style>
         :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -18,20 +18,21 @@
         button:hover { background: #1d4ed8; }
         .section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
         .section-title { font-size: 16px; font-weight: bold; margin-bottom: 12px; }
-        .list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+        .list { display: flex; flex-direction: column; gap: 8px; max-height: 350px; overflow-y: auto; }
         .item { padding: 14px; border: 1px solid var(--border); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .item-name { font-weight: 600; font-size: 15px; }
+        .item-name { font-weight: 600; font-size: 15px; color: #0f172a; }
         .item-sub { font-size: 13px; color: #64748b; margin-top: 2px; }
         .loading { text-align: center; color: #64748b; padding: 20px; }
         .btn-detail { padding: 8px 14px; background: #e0e7ff; color: #3730a3; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
         .btn-detail:hover { background: #c7d2fe; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>🏢 전국 아파트 검색 & 평수 조회</h1>
-    <p class="sub">국토교통부 공간정보(Vworld) API로 정확한 아파트 및 주소를 검색합니다.</p>
+    <p class="sub">국토교통부 공간정보(Vworld) API를 이용한 단지 정보 조회 서비스입니다.</p>
 
     <div class="search-box">
         <input type="text" id="searchInput" placeholder="아파트 이름 입력 (예: 반포자이, 헬리오시티, 은마)" onkeyup="if(event.keyCode==13) searchApt()">
@@ -40,13 +41,13 @@
 
     <!-- 검색 결과 목록 -->
     <div id="resultSection" class="section hidden">
-        <div class="section-title">검색된 아파트 목록</div>
+        <div class="section-title">검색 결과 목록</div>
         <div id="aptList" class="list"></div>
     </div>
 </div>
 
 <script>
-    // ⚠️ Vworld에서 발급받은 인증키를 입력하세요.
+    // 발급받으신 Vworld 인증키 적용
     const VWORLD_KEY = 'CA9A1FB5-9AF0-4683-8C44-927CDCF49407'; 
 
     async function searchApt() {
@@ -60,7 +61,7 @@
         listContainer.innerHTML = '<div class="loading">검색 중입니다...</div>';
 
         try {
-            // 국토교통부 Vworld 주소/건물 검색 API (CORS 문제 없음)
+            // Vworld 검색 API 호출
             const url = `https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=EPSG:4326&size=20&page=1&query=${encodeURIComponent(query)}&type=place&category=apt&format=json&errorFormat=json&key=${VWORLD_KEY}`;
 
             const response = await fetch(url);
@@ -69,7 +70,7 @@
             listContainer.innerHTML = '';
 
             if (data.response.status === 'NOT_FOUND' || !data.response.result) {
-                listContainer.innerHTML = '<div class="loading">검색 결과가 없습니다. 단지명을 다시 확인해 주세요.</div>';
+                listContainer.innerHTML = '<div class="loading">검색 결과가 없습니다. 단지명을 확인해 주세요.</div>';
                 return;
             }
 
@@ -88,19 +89,18 @@
                         <div class="item-sub">도로명: ${roadAddr}</div>
                         ${parcelAddr ? `<div class="item-sub">지번: ${parcelAddr}</div>` : ''}
                     </div>
-                    <button class="btn-detail" onclick="openNaverInfo('${name}')">상세정보 보기</button>
+                    <button class="btn-detail" onclick="openDetail('${name}')">상세/평수 보기</button>
                 `;
                 listContainer.appendChild(div);
             });
 
         } catch (error) {
             console.error(error);
-            listContainer.innerHTML = '<div class="loading" style="color:red;">검색 중 오류가 발생했습니다. Vworld API 키를 확인해 주세요.</div>';
+            listContainer.innerHTML = '<div class="loading" style="color:red;">검색 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>';
         }
     }
 
-    function openNaverInfo(aptName) {
-        // 검색된 정확한 단지명으로 이동
+    function openDetail(aptName) {
         const targetUrl = `https://m.land.naver.com/search/result/${encodeURIComponent(aptName)}`;
         window.open(targetUrl, '_blank');
     }
