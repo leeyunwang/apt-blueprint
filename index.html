@@ -63,7 +63,7 @@
 </div>
 
 <script>
-    async function search() {
+async function search() {
         const query = document.getElementById('searchInput').value.trim();
         if (!query) return alert('아파트 이름을 입력하세요.');
 
@@ -75,23 +75,41 @@
             const data = await res.json();
             
             const complexes = [];
-            if (data.items) {
-                data.items.forEach(item => {
-                    if (item && item[0]) {
-                        item[0].forEach(t => complexes.push({ id: t[0][0], name: t[1][0], address: t[3][0] }));
+            
+            // 네이버 검색 데이터 추출
+            if (data && data.items) {
+                data.items.forEach(group => {
+                    if (Array.isArray(group)) {
+                        group.forEach(subGroup => {
+                            if (Array.isArray(subGroup)) {
+                                subGroup.forEach(item => {
+                                    // 아파트/분양권 단지 코드 식별
+                                    if (item && item[0] && item[0][0]) {
+                                        complexes.push({
+                                            id: item[0][0],
+                                            name: item[1] ? item[1][0] : query,
+                                            address: item[3] ? item[3][0] : ''
+                                        });
+                                    }
+                                });
+                            }
+                        });
                     }
                 });
             }
 
-            if (complexes.length === 0) alert('검색 결과가 없습니다.');
-            else renderComplexes(complexes);
+            if (complexes.length === 0) {
+                alert('검색 결과가 없습니다. 아파트 이름을 다시 확인해주세요. (예: 반포자이, 잠실리센츠)');
+            } else {
+                renderComplexes(complexes);
+            }
         } catch (e) {
-            alert('오류가 발생했습니다.');
+            console.error(e);
+            alert('검색 중 오류가 발생했습니다.');
         } finally {
             toggle('loading', false);
         }
     }
-
     function renderComplexes(list) {
         const el = document.getElementById('complexList');
         el.innerHTML = '';
