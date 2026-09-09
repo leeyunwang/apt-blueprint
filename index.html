@@ -74,7 +74,7 @@
 
             try {
                 // 공동주택 단지 목록 제공 API URL
-                const targetUrl = `http://apis.data.go.kr/1613000/AptListService2/getAptList?serviceKey=${apiKey}&searchKeyword=${encodeURIComponent(keyword)}&numOfRows=15&pageNo=1`;
+                const targetUrl = `https://apis.data.go.kr/1613000/AptListService4/getAptList?serviceKey=${apiKey}&searchKeyword=${encodeURIComponent(keyword)}&numOfRows=15&pageNo=1`;
                 const xmlDoc = await fetchWithProxy(targetUrl);
 
                 const items = xmlDoc.getElementsByTagName('item');
@@ -111,7 +111,7 @@
 
             try {
                 // 공동주택 기본 정보 제공 API URL
-                const targetUrl = `http://apis.data.go.kr/1613000/AptBasisInfoService1/getAptBasisInfo?serviceKey=${apiKey}&kaptCode=${kaptCode}`;
+                const targetUrl = `https://apis.data.go.kr/1613000/AptBasisInfoServiceV5/getAptBasisInfo?serviceKey=${apiKey}&kaptCode=${kaptCode}`;
                 const xmlDoc = await fetchWithProxy(targetUrl);
 
                 loading.style.display = 'none';
