@@ -26,7 +26,7 @@
         .result { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 16px; }
         .badge { background: #f0f2f5; padding: 8px 16px; border-radius: 20px; font-size: 14px; }
         .img { max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
-        .loading { text-align: center; color: #888; padding: 10px; }
+        .loading { text-align: center; color: #03c75a; font-weight: bold; padding: 15px; }
         .hidden { display: none; }
     </style>
 </head>
@@ -41,7 +41,7 @@
         <button onclick="search()">검색</button>
     </div>
 
-    <div id="loading" class="loading hidden">데이터를 가져오는 중...</div>
+    <div id="loading" class="loading hidden">🔄 데이터를 불러오는 중입니다...</div>
 
     <div id="complexSection" class="section hidden">
         <div class="title">1. 아파트 단지 선택</div>
@@ -63,7 +63,7 @@
 </div>
 
 <script>
-async function search() {
+    async function search() {
         const query = document.getElementById('searchInput').value.trim();
         if (!query) return alert('아파트 이름을 입력하세요.');
 
@@ -72,18 +72,18 @@ async function search() {
 
         try {
             const res = await fetch(`/api/search?keyword=${encodeURIComponent(query)}`);
+            if (!res.ok) throw new Error("서버 응답 오류");
+            
             const data = await res.json();
-            
             const complexes = [];
-            
-            // 네이버 검색 데이터 추출
-            if (data && data.items) {
+
+            // 형태 1: 자동완성 API 형식 파싱
+            if (data.items) {
                 data.items.forEach(group => {
                     if (Array.isArray(group)) {
-                        group.forEach(subGroup => {
-                            if (Array.isArray(subGroup)) {
-                                subGroup.forEach(item => {
-                                    // 아파트/분양권 단지 코드 식별
+                        group.forEach(sub => {
+                            if (Array.isArray(sub)) {
+                                sub.forEach(item => {
                                     if (item && item[0] && item[0][0]) {
                                         complexes.push({
                                             id: item[0][0],
@@ -97,19 +97,32 @@ async function search() {
                     }
                 });
             }
+            // 형태 2: 모바일 검색 결과 파싱
+            else if (data.result && Array.isArray(data.result)) {
+                data.result.forEach(item => {
+                    if (item.hscpNo || item.complexNo) {
+                        complexes.push({
+                            id: item.hscpNo || item.complexNo,
+                            name: item.hscpNm || item.complexName || query,
+                            address: item.address || ''
+                        });
+                    }
+                });
+            }
 
             if (complexes.length === 0) {
-                alert('검색 결과가 없습니다. 아파트 이름을 다시 확인해주세요. (예: 반포자이, 잠실리센츠)');
+                alert('검색 결과가 없습니다. 아파트 이름을 정확히 입력해보세요.');
             } else {
                 renderComplexes(complexes);
             }
         } catch (e) {
             console.error(e);
-            alert('검색 중 오류가 발생했습니다.');
+            alert('데이터를 가져오는 중 오류가 발생했습니다.');
         } finally {
             toggle('loading', false);
         }
     }
+
     function renderComplexes(list) {
         const el = document.getElementById('complexList');
         el.innerHTML = '';
@@ -134,21 +147,32 @@ async function search() {
 
         try {
             const res = await fetch(`/api/detail?complexNo=${complexNo}`);
+            if (!res.ok) throw new Error("서버 응답 오류");
+            
             const data = await res.json();
+            let rawList = data.result || [];
 
-            const pyeongs = (data.result || []).map(p => {
-                const imgPath = p.layoutImagePath || p.pyeongImagePath;
+            const pyeongs = rawList.map(p => {
+                const imgPath = p.layoutImagePath || p.pyeongImagePath || p.grandPlanImg;
+                const supply = p.supplyArea || p.supplyAreaDouble || '-';
+                const exclusive = p.exclusiveArea || p.exclusiveAreaDouble || '-';
+                const name = p.pyeongName || `${supply}㎡`;
+
                 return {
-                    name: p.pyeongName || `${p.supplyArea}㎡`,
-                    supply: p.supplyArea,
-                    exclusive: p.exclusiveArea,
-                    img: imgPath ? `https://landthumb-phinf.pstatic.net${imgPath}` : null
+                    name: name,
+                    supply: supply,
+                    exclusive: exclusive,
+                    img: imgPath ? (imgPath.startsWith('http') ? imgPath : `https://landthumb-phinf.pstatic.net${imgPath}`) : null
                 };
             });
 
-            if (pyeongs.length === 0) alert('평형 정보가 없습니다.');
-            else renderPyeongs(pyeongs);
+            if (pyeongs.length === 0) {
+                alert('해당 단지의 평형 정보가 없습니다.');
+            } else {
+                renderPyeongs(pyeongs);
+            }
         } catch (e) {
+            console.error(e);
             alert('평형 정보를 불러오지 못했습니다.');
         } finally {
             toggle('loading', false);
