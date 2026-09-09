@@ -17,213 +17,40 @@
         button { padding: 12px 20px; background: var(--primary); color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         .section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
         .title { font-size: 16px; font-weight: bold; margin-bottom: 12px; }
-        .list { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
-        .item { padding: 12px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: background 0.2s; }
-        .item:hover, .item.active { background: #e8f9f0; border-color: var(--primary); font-weight: bold; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
-        .card { padding: 14px; border: 1px solid var(--border); border-radius: 8px; text-align: center; cursor: pointer; transition: background 0.2s; }
-        .card:hover, .card.active { background: #e8f9f0; border-color: var(--primary); color: var(--primary); font-weight: bold; }
-        .result { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 16px; }
-        .badge { background: #f0f2f5; padding: 8px 16px; border-radius: 20px; font-size: 14px; }
-        .img { max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
-        .loading { text-align: center; color: var(--primary); font-weight: bold; padding: 15px; }
+        .list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+        .item { padding: 14px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .item:hover { background: #e8f9f0; border-color: var(--primary); }
+        .btn-view { padding: 6px 12px; background: var(--primary); color: white; border-radius: 6px; font-size: 13px; font-weight: bold; text-decoration: none; }
         .hidden { display: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🏢 아파트 평수 & 도면 조회</h1>
-    <p class="sub">아파트 이름을 검색하여 평수와 도면을 바로 확인해보세요.</p>
+    <h1>🏢 아파트 평수 & 도면 바로가기</h1>
+    <p class="sub">아파트 이름을 검색하여 네이버 부동산의 평수별 도면 페이지로 바로 이동합니다.</p>
 
     <div class="search-box">
-        <input type="text" id="searchInput" placeholder="아파트 이름 입력 (예: 반포자이, 헬리오시티, 잠실리센츠)" onkeyup="if(event.keyCode==13) search()">
+        <input type="text" id="searchInput" placeholder="아파트 이름 입력 (예: 반포자이, 헬리오시티)" onkeyup="if(event.keyCode==13) search()">
         <button onclick="search()">검색</button>
     </div>
 
-    <div id="loading" class="loading hidden">🔄 데이터를 불러오는 중입니다...</div>
-
     <div id="complexSection" class="section hidden">
-        <div class="title">1. 아파트 단지 선택</div>
+        <div class="title">검색된 아파트 단지 목록</div>
         <div id="complexList" class="list"></div>
-    </div>
-
-    <div id="pyeongSection" class="section hidden">
-        <div class="title">2. 평수 선택</div>
-        <div id="pyeongGrid" class="grid"></div>
-    </div>
-
-    <div id="resultSection" class="section hidden">
-        <div class="title">3. 평면 도면</div>
-        <div class="result">
-            <div id="areaInfo" class="badge"></div>
-            <img id="blueprintImg" class="img" src="" alt="도면 이미지">
-        </div>
     </div>
 </div>
 
 <script>
-    // CORS 회피용 멀티 스크립트 기반 JSONP/Fetch 우회 로직
-    async function fetchWithFallback(url) {
-        const proxies = [
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-            `https://corsproxy.io/?${encodeURIComponent(url)}`
-        ];
-
-        for (const proxy of proxies) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 4000); // 4초 타임아웃
-                
-                const res = await fetch(proxy, { signal: controller.signal });
-                clearTimeout(timeoutId);
-
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data) return data;
-                }
-            } catch (e) {
-                console.warn("Proxy attempt failed:", e);
-            }
-        }
-        throw new Error("모든 네트워크 요청이 차단되었습니다.");
-    }
-
-    async function search() {
+    function search() {
         const query = document.getElementById('searchInput').value.trim();
         if (!query) return alert('아파트 이름을 입력해주세요.');
 
-        toggle('loading', true);
-        hideAll();
-
-        const searchUrl = `https://ac.land.naver.com/ac?q=${encodeURIComponent(query)}&st=100&r_format=json&r_enc=UTF-8&r_unicode=0&t_k=0&q_enc=UTF-8`;
-
-        try {
-            const data = await fetchWithFallback(searchUrl);
-            const complexes = [];
-
-            if (data && data.items && data.items.length > 0) {
-                data.items.forEach(group => {
-                    if (Array.isArray(group)) {
-                        group.forEach(sub => {
-                            if (Array.isArray(sub)) {
-                                sub.forEach(item => {
-                                    if (item && item[0] && item[0][0]) {
-                                        complexes.push({
-                                            id: item[0][0],
-                                            name: item[1] ? item[1][0] : query,
-                                            address: item[3] ? item[3][0] : ''
-                                        });
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-
-            if (complexes.length === 0) {
-                alert('검색 결과가 없습니다. 아파트 이름을 정확히 입력해주세요.');
-            } else {
-                renderComplexes(complexes);
-            }
-        } catch (e) {
-            alert('네이버 외부 접속이 차단되었습니다. 다른 아파트명으로 검색해 보시거나 잠시 후 다시 시도해 주세요.');
-        } finally {
-            toggle('loading', false);
-        }
-    }
-
-    function renderComplexes(list) {
-        const el = document.getElementById('complexList');
-        el.innerHTML = '';
-        list.forEach(c => {
-            const div = document.createElement('div');
-            div.className = 'item';
-            div.innerHTML = `<strong>${c.name}</strong> <small style="color:#777">(${c.address})</small>`;
-            div.onclick = () => {
-                document.querySelectorAll('.item').forEach(i => i.classList.remove('active'));
-                div.classList.add('active');
-                fetchPyeongs(c.id);
-            };
-            el.appendChild(div);
-        });
-        toggle('complexSection', true);
-    }
-
-    async function fetchPyeongs(complexNo) {
-        toggle('loading', true);
-        toggle('pyeongSection', false);
-        toggle('resultSection', false);
-
-        const detailUrl = `https://fin.land.naver.com/front-api/v1/complex/ptype?complexNo=${complexNo}`;
-
-        try {
-            const data = await fetchWithFallback(detailUrl);
-            const rawList = data.result || [];
-
-            const pyeongs = rawList.map(p => {
-                const imgPath = p.layoutImagePath || p.pyeongImagePath || p.grandPlanImg;
-                const supply = p.supplyArea || p.supplyAreaDouble || '-';
-                const exclusive = p.exclusiveArea || p.exclusiveAreaDouble || '-';
-                const pyeongName = p.pyeongName || `${supply}㎡`;
-
-                return {
-                    name: pyeongName,
-                    supply: supply,
-                    exclusive: exclusive,
-                    img: imgPath ? (imgPath.startsWith('http') ? imgPath : `https://landthumb-phinf.pstatic.net${imgPath}`) : null
-                };
-            });
-
-            if (pyeongs.length === 0) {
-                alert('해당 단지의 평형 정보가 존재하지 않습니다.');
-            } else {
-                renderPyeongs(pyeongs);
-            }
-        } catch (e) {
-            alert('평형 정보를 불러오는 도중 오류가 발생했습니다.');
-        } finally {
-            toggle('loading', false);
-        }
-    }
-
-    function renderPyeongs(list) {
-        const el = document.getElementById('pyeongGrid');
-        el.innerHTML = '';
-        list.forEach(p => {
-            const div = document.createElement('div');
-            div.className = 'card';
-            div.innerHTML = `<strong>${p.name}</strong><br><small style="color:#666">전용 ${p.exclusive}㎡</small>`;
-            div.onclick = () => {
-                document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
-                div.classList.add('active');
-                showResult(p);
-            };
-            el.appendChild(div);
-        });
-        toggle('pyeongSection', true);
-    }
-
-    function showResult(p) {
-        document.getElementById('areaInfo').innerHTML = `<strong>공급면적:</strong> ${p.supply}㎡ | <strong>전용면적:</strong> ${p.exclusive}㎡`;
-        const img = document.getElementById('blueprintImg');
-        if (p.img) {
-            img.src = p.img;
-            img.style.display = 'block';
-        } else {
-            img.style.display = 'none';
-            alert('등록된 도면 이미지가 없습니다.');
-        }
-        toggle('resultSection', true);
-    }
-
-    function toggle(id, show) {
-        document.getElementById(id).classList.toggle('hidden', !show);
-    }
-
-    function hideAll() {
-        ['complexSection', 'pyeongSection', 'resultSection'].forEach(id => toggle(id, false));
+        // 네이버 부동산 검색 페이지로 즉시 연결하는 모바일/PC 대응 URL
+        const searchUrl = `https://m.land.naver.com/search/result/${encodeURIComponent(query)}`;
+        
+        // 검색 결과 창을 바로 띄우기
+        window.open(searchUrl, '_blank');
     }
 </script>
 
